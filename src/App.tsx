@@ -1,12 +1,14 @@
 import { useState } from 'react';
+import { Lesson } from './components/Lesson';
 import { Reference } from './components/Reference';
 import { WriteDrill } from './components/WriteDrill';
 import { ReadDrill } from './components/ReadDrill';
 import { Translator } from './components/Translator';
 
-type Tab = 'reference' | 'write' | 'read' | 'translate';
+type Tab = 'lesson' | 'reference' | 'write' | 'read' | 'translate';
 
 const TABS: Array<{ id: Tab; label: string; sub: string }> = [
+  { id: 'lesson', label: 'ルール', sub: 'ゼロから学ぶ' },
   { id: 'reference', label: '一覧', sub: '点字を見て覚える' },
   { id: 'write', label: '書き取り', sub: '文字 → 点を打つ' },
   { id: 'read', label: '読み取り', sub: '点字 → 文字を選ぶ' },
@@ -14,7 +16,7 @@ const TABS: Array<{ id: Tab; label: string; sub: string }> = [
 ];
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('reference');
+  const [tab, setTab] = useState<Tab>('lesson');
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -50,6 +52,7 @@ export default function App() {
       </nav>
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-6">
+        {tab === 'lesson' && <Lesson />}
         {tab === 'reference' && <Reference />}
         {tab === 'write' && <WriteDrill />}
         {tab === 'read' && <ReadDrill />}
