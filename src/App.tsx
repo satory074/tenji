@@ -67,6 +67,16 @@ export default function App() {
           <div>
             このアプリは学習補助ツールです。本格的な点訳には『点訳のてびき 第4版』『点字表記辞典 第7版』を参照してください。
           </div>
+          <div className="pt-2">
+            <a
+              href="https://satory074.com/apps/"
+              target="_blank"
+              rel="noopener"
+              className="hover:text-slate-700 transition"
+            >
+              アプリ一覧へ
+            </a>
+          </div>
         </div>
       </footer>
     </div>
