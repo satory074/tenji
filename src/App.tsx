@@ -19,7 +19,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('lesson');
 
   return (
-    <div className="min-h-screen flex flex-col pb-12">
+    <div className="min-h-screen flex flex-col pb-[calc(48px+env(safe-area-inset-bottom))]">
       <header className="border-b border-slate-200 bg-white">
         <div className="max-w-5xl mx-auto px-4 py-4 sm:py-5">
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-baseline gap-2">
@@ -73,10 +73,10 @@ export default function App() {
       {/* サイト間ナビ: 画面下端に常駐する控えめな逆リンクバー（→ satory074.com/apps） */}
       <nav
         aria-label="サイト間ナビゲーション"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/85 backdrop-blur"
+        className="app-backlink-bar fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/90 backdrop-blur"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="mx-auto flex h-9 max-w-5xl items-center justify-center px-4">
+        <div className="mx-auto flex h-9 items-center justify-center px-4">
           <a
             href="https://satory074.com/apps/"
             target="_blank"
@@ -84,7 +84,7 @@ export default function App() {
             aria-label="satory074 のほかのアプリ一覧を新しいタブで開く"
             className="inline-flex items-center gap-1 text-xs text-slate-600 transition-colors hover:text-slate-900"
           >
-            satory074 のほかのアプリ <span aria-hidden>↗</span>
+            satory074 のほかのアプリ <span aria-hidden="true">↗</span>
           </a>
         </div>
       </nav>
