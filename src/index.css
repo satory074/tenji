@@ -17,3 +17,8 @@ body {
   background: #fafaf7;
   color: #1f2937;
 }
+
+/* 固定バックリンクバーがページ内アンカーの飛び先を隠さないように */
+html {
+  scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom));
+}
