@@ -1,11 +1,20 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { Category } from './data/braille';
 import { Lesson } from './components/Lesson';
 import { Reference } from './components/Reference';
 import { WriteDrill } from './components/WriteDrill';
 import { ReadDrill } from './components/ReadDrill';
 import { Translator } from './components/Translator';
-
-type Tab = 'lesson' | 'reference' | 'write' | 'read' | 'translate';
+import { RouteLink } from './components/RouteLink';
+import {
+  DEFAULT_CATEGORY,
+  LESSON_ROUTE,
+  routeFromPathname,
+  routeHref,
+  type Route,
+  type Tab,
+} from './lib/routes';
+import { applyHead, pageMeta } from './lib/seo';
 
 const TABS: Array<{ id: Tab; label: string; sub: string }> = [
   { id: 'lesson', label: 'ルール', sub: 'ゼロから学ぶ' },
@@ -15,8 +24,35 @@ const TABS: Array<{ id: Tab; label: string; sub: string }> = [
   { id: 'translate', label: '点訳', sub: '文章 → 点字に変換' },
 ];
 
-export default function App() {
-  const [tab, setTab] = useState<Tab>('lesson');
+// タブと一覧の分類は URL で決まる (src/lib/routes.ts)。最初の値は URL から渡され、
+// 事前描画 (src/entry-server.tsx) とブラウザで同じ HTML になる。
+export default function App({
+  initialTab = 'lesson',
+  initialCategory = DEFAULT_CATEGORY,
+}: {
+  initialTab?: Tab;
+  initialCategory?: Category;
+}) {
+  const [route, setRoute] = useState<Route>({ tab: initialTab, category: initialCategory });
+  const tab = route.tab;
+  const meta = pageMeta(route);
+
+  const navigate = useCallback((next: Route) => {
+    const href = routeHref(next);
+    if (location.pathname !== href) history.pushState(null, '', href);
+    setRoute(next);
+  }, []);
+
+  // ブラウザの戻る・進む
+  useEffect(() => {
+    const onPop = () => setRoute(routeFromPathname(location.pathname) ?? LESSON_ROUTE);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  useEffect(() => {
+    applyHead(route);
+  }, [route]);
 
   return (
     <div className="min-h-screen flex flex-col pb-[calc(48px+env(safe-area-inset-bottom))]">
@@ -32,13 +68,15 @@ export default function App() {
         </div>
       </header>
 
-      <nav className="border-b border-slate-200 bg-white sticky top-0 z-10">
+      <nav aria-label="メニュー" className="border-b border-slate-200 bg-white sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-2 sm:px-4 flex overflow-x-auto">
           {TABS.map((t) => (
-            <button
+            <RouteLink
               key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 transition ${
+              to={{ tab: t.id, category: DEFAULT_CATEGORY }}
+              current={tab === t.id}
+              onNavigate={navigate}
+              className={`flex-shrink-0 px-4 py-3 text-center text-sm font-medium border-b-2 transition ${
                 tab === t.id
                   ? 'border-amber-500 text-slate-900'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -46,14 +84,21 @@ export default function App() {
             >
               <div>{t.label}</div>
               <div className="text-[10px] font-normal text-slate-400">{t.sub}</div>
-            </button>
+            </RouteLink>
           ))}
         </div>
       </nav>
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-6">
+        {/* ルールのページは Lesson.tsx が自分の h1 と導入文を持つ */}
+        {meta.intro && (
+          <div className="mb-5">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900">{meta.heading}</h2>
+            <p className="mt-1 max-w-3xl text-sm text-slate-600 leading-relaxed">{meta.intro}</p>
+          </div>
+        )}
         {tab === 'lesson' && <Lesson />}
-        {tab === 'reference' && <Reference />}
+        {tab === 'reference' && <Reference category={route.category} onNavigate={navigate} />}
         {tab === 'write' && <WriteDrill />}
         {tab === 'read' && <ReadDrill />}
         {tab === 'translate' && <Translator />}

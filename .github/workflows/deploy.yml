@@ -27,6 +27,9 @@ jobs:
         run: npm ci || npm install
       - name: Build
         run: npm run build
+      # 事前描画した各ページの title・canonical・サイトマップ・JSON-LD・戻りバーを検査する。破ったら deploy しない
+      - name: SEO check
+        run: node scripts/seo-check.mjs dist https://satory074.github.io/tenji/ --require-backlink
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
