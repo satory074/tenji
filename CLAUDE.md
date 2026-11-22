@@ -5,19 +5,49 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev        # Vite dev server at http://localhost:5173/tenji/
-npm run build      # tsc -b && vite build → dist/
+npm run dev        # Vite dev server at http://localhost:5173/tenji/ (SPA のまま。事前描画なし)
+npm run build      # tsc -b → vite build (dist/) → vite build --ssr (dist-ssr/) → scripts/prerender.mjs
+npm run seo-check  # dist/ を検査 (scripts/seo-check.mjs、deploy でも同じものが走る)
 npm run typecheck  # tsc -b --noEmit (pure type check, faster)
 npm run preview    # Serve dist/ locally
 ```
 
-No test runner is configured. Type errors caught by `tsc -b` (strict mode + noUnusedLocals/Parameters) gate the build.
+No test runner is configured. Type errors caught by `tsc -b` (strict mode + noUnusedLocals/Parameters) gate the build. The only invariant check is `scripts/seo-check.mjs` (copied verbatim from `basecamp/scripts/seo-check.mjs` — don't edit it here; re-copy from the original when it changes).
+
+本番と同じパスで確かめるとき: 一時ディレクトリに `tenji/` を作って `dist/` の中身を置き、その親で `python3 -m http.server` → `curl http://127.0.0.1:8000/tenji/reference/eiji/` で JS なしの HTML に表が入っていること、ブラウザの console に React #418 (hydration) が出ないことを見る。
 
 ## Deployment
 
 `main` branch push → `.github/workflows/deploy.yml` → GitHub Pages at `https://satory074.github.io/tenji/`. Pages source must be set to **GitHub Actions** in repo settings.
 
 `vite.config.ts` reads `VITE_BASE` (default `/tenji/`). To deploy under a different repo name or custom domain, set `VITE_BASE=/newpath/` or `VITE_BASE=/`. Forgetting this breaks all asset URLs.
+
+canonical・og:url・sitemap.xml の絶対 URL は **`SITE_URL`** (default `https://satory074.github.io/tenji/`, 末尾 `/` 必須) から作る (`vite.config.ts` の `define` → `__SITE_URL__` → `src/lib/seo.ts`)。`VITE_BASE` を変えたら `SITE_URL` も合わせること (別々の値なので片方だけ変えると canonical が食い違う)。deploy workflow はビルド直後に `seo-check` を走らせ、破ったら deploy しない。
+
+## URL and prerendering (crawlable pages)
+
+Each tab and each 一覧 category has its own URL (13 pages). The table is `src/lib/routes.ts` (`ROUTES`, `routePath`, `routeFromPathname`):
+
+| URL (under `/tenji/`) | Page |
+|---|---|
+| `/` | ルール (Lesson) |
+| `/reference/` | 一覧・五十音 |
+| `/reference/{dakuon,handakuon,youon,youdakuon,youhandakuon,suuji,eiji,kigou}/` | 一覧・各分類 |
+| `/write/` `/read/` `/translate/` | 書き取り・読み取り・点訳 |
+
+- **noindex**: `handakuon` (5 文字)・`youhandakuon` (3)・`kigou` (6) は単独ページとしては薄いので `<meta name="robots" content="noindex">` を付けてサイトマップから外す (`NOINDEX_CATEGORIES` in `routes.ts`)。一覧タブの中では普通に見られる
+- Tabs and category chips are real `<a href>` (`src/components/RouteLink.tsx`); plain clicks use `history.pushState`, `popstate` restores the route. No router library. `App` takes `initialTab` / `initialCategory`
+- **Title / description / heading / intro / JSON-LD all come from `src/lib/seo.ts`** (`pageMeta`, `headTags`, `jsonLd`). The on-screen intro under each page heading and the meta description are the same string. `applyHead()` updates `document.title` + canonical + og:url on client navigation
+- **Prerender** (`scripts/prerender.mjs`): uses `dist/index.html` as the template, fills `<!--seo-head-->` with `headTags()` and `<div id="root">` with `renderToString` from `dist-ssr/entry-server.js` (`src/entry-server.tsx`), writes `dist/<path>/index.html` and `dist/sitemap.xml` (indexable pages only). No 404.html (unknown URLs stay GitHub Pages' 404)
+- `src/main.tsx` uses `hydrateRoot` only when the URL is a known route and `#root` has prerendered children; otherwise `createRoot` (e.g. `npm run dev`)
+- JSON-LD: top = `WebSite` (`@id` `<SITE_URL>#website`), others = `WebPage` with `isPartOf` → that `@id`. `author` is always `{"@id":"https://satory074.com/#person"}` (defined on satory074.com)
+- The reference page also renders a `<details>` table (文字 / Unicode 点字 / 点番号) so the dot numbers exist as text for screen readers and non-JS crawlers
+
+### Hydration gotchas (actually hit)
+
+- **No randomness or browser-only values in the first render.** `WriteDrill` / `ReadDrill` start with `null` and pick the first question in the `[mode]` effect; the server renders only the controls/instructions with invisible placeholders of the same size
+- **`BrailleCell`'s root is a `<span>` (display `inline-grid`), not `<div>`.** Lesson §7 puts a cell inside `<p>`; a `<div>` there makes the HTML parser close the `<p>` early and React reports #418. Don't put block elements (`div`, `table`, `ul`…) inside `<p>` anywhere
+- `entry-server.tsx` must stay under `src/` so `tsc -b` (tsconfig.app.json `include: ["src"]`) type-checks it
 
 ## Architecture: the `Mas[]` abstraction
 
@@ -53,7 +83,7 @@ The `WriteDrill` and `ReadDrill` components iterate `current.mas` and render one
 - `SUUJI`, `EIJI` are simpler: array+map with their respective prefix
 - `ALL_ITEMS` concatenates everything; `KANA_TO_ITEM` is a Map for translator lookup
 
-If you change a vowel/consonant pattern, it propagates through every category that uses it. Tests are visual: rebuild and check the Reference tab.
+If you change a vowel/consonant pattern, it propagates through every category that uses it. Tests are visual: rebuild and check the Reference tab. Item counts in page titles/intros are computed from the data (`count()` in `seo.ts`), but the intro sentences describe the rules in words — update them if a category's rule changes.
 
 ## Unicode rendering
 

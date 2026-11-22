@@ -18,17 +18,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - name: Install
         run: npm ci || npm install
       - name: Build
         run: npm run build
+      # 事前描画した各ページの title・canonical・サイトマップ・JSON-LD・戻りバーを検査する。破ったら deploy しない
+      - name: SEO check
+        run: node scripts/seo-check.mjs dist https://satory074.github.io/tenji/ --require-backlink
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ./dist
 
@@ -40,4 +43,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

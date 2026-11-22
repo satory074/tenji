@@ -42,8 +42,10 @@ export function BrailleCell({
         ? 'bg-rose-50 border-rose-400'
         : 'bg-amber-50 border-amber-300';
 
+  // 外側は <span> (表示は inline-grid)。<p> の中にも置かれる (Lesson の例文) ので <div> にしない。
+  // <p> の中の <div> は HTML の解析で <p> が閉じられ、事前描画の HTML と React の木が食い違う
   return (
-    <div
+    <span
       className={`inline-grid grid-cols-2 ${s.gap} ${s.pad} ${frameClass} border rounded-md`}
       role={interactive ? 'group' : 'img'}
       aria-label={`点字: ${ORDER.filter((d) => dotsHas(dots, d)).join(',')}`}
@@ -77,6 +79,6 @@ export function BrailleCell({
           </span>
         );
       })}
-    </div>
+    </span>
   );
 }

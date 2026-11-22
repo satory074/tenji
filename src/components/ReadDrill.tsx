@@ -33,7 +33,12 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-function buildQuestion(items: BrailleItem[]): { answer: BrailleItem; choices: BrailleItem[] } {
+interface Question {
+  answer: BrailleItem;
+  choices: BrailleItem[];
+}
+
+function buildQuestion(items: BrailleItem[]): Question {
   const answer = items[Math.floor(Math.random() * items.length)];
   const distractors = shuffle(items.filter((it) => it.display !== answer.display)).slice(0, 3);
   const choices = shuffle([answer, ...distractors]);
@@ -44,7 +49,9 @@ export function ReadDrill() {
   const [mode, setMode] = useState<keyof typeof MODES>('五十音のみ');
   const [showNumbers, setShowNumbers] = useState(false);
   const items = MODES[mode];
-  const [{ answer, choices }, setQ] = useState(() => buildQuestion(items));
+  // 最初の問題はマウント後 (下の effect) に乱数で作る。事前描画の HTML には問題を入れず、
+  // ブラウザの最初の描画もそれと同じにする (ここで乱数を使うと hydration が食い違う)
+  const [q, setQ] = useState<Question | null>(null);
   const [picked, setPicked] = useState<BrailleItem | null>(null);
   const [score, setScore] = useState({ correct: 0, total: 0 });
 
@@ -53,10 +60,11 @@ export function ReadDrill() {
     setPicked(null);
   }, [mode]);
 
-  const isCorrect = useMemo(() => picked?.display === answer.display, [picked, answer]);
+  const isCorrect = useMemo(() => q !== null && picked?.display === q.answer.display, [picked, q]);
 
   function pick(c: BrailleItem) {
-    if (picked) return;
+    if (picked || !q) return;
+    const { answer } = q;
     setPicked(c);
     setScore((s) => ({
       correct: s.correct + (c.display === answer.display ? 1 : 0),
@@ -103,14 +111,31 @@ export function ReadDrill() {
           この点字が表す文字は？
         </div>
         <div className="flex justify-center gap-2 mb-8">
-          {answer.mas.map((m, i) => (
-            <BrailleCell key={i} dots={m} size="lg" showNumbers={showNumbers} />
-          ))}
+          {q ? (
+            q.answer.mas.map((m, i) => (
+              <BrailleCell key={i} dots={m} size="lg" showNumbers={showNumbers} />
+            ))
+          ) : (
+            // 問題を作る前: 同じ大きさの場所だけ取っておく
+            <div className="invisible" aria-hidden="true">
+              <BrailleCell dots={[]} size="lg" />
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {choices.map((c) => {
-            const isAns = c.display === answer.display;
+          {!q &&
+            [0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                aria-hidden="true"
+                className="invisible px-4 py-4 border-2 rounded-lg text-2xl font-semibold"
+              >
+                &nbsp;
+              </div>
+            ))}
+          {q?.choices.map((c) => {
+            const isAns = c.display === q.answer.display;
             const isPicked = picked?.display === c.display;
             const className = !picked
               ? 'bg-white border-slate-300 hover:bg-slate-50 hover:border-amber-400'
@@ -139,7 +164,7 @@ export function ReadDrill() {
                 isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
               }`}
             >
-              {isCorrect ? '✓ 正解！' : `✗ 不正解（正解: ${answer.display}）`}
+              {isCorrect ? '✓ 正解！' : `✗ 不正解（正解: ${q?.answer.display}）`}
             </div>
             <button
               onClick={next}
